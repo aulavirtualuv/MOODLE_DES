@@ -1264,7 +1264,7 @@ class global_navigation extends navigation_node {
      * @return bool
      */
     public function initialise() {
-        global $CFG, $SITE, $USER;
+        global $CFG, $SITE, $USER, $SESSION; //DRG CORE SESSION;
         // Check if it has already been initialised
         if ($this->initialised || during_initial_install()) {
             return true;
@@ -2613,7 +2613,7 @@ class global_navigation extends navigation_node {
      * @return navigation_node
      */
     public function add_course(stdClass $course, $forcegeneric = false, $coursetype = self::COURSE_OTHER) {
-        global $CFG, $SITE;
+        global $CFG, $SITE, $SESSION; //DRG CORE lang fullname
 
         // We found the course... we can return it now :)
         if (!$forcegeneric && array_key_exists($course->id, $this->addedcourses)) {
@@ -2632,6 +2632,13 @@ class global_navigation extends navigation_node {
 
         $issite = ($course->id == $SITE->id);
         $shortname = format_string($course->shortname, true, array('context' => $coursecontext));
+        //DRG-beg CORE lang fullname mycourses https://jirad.uv.es/browse/AULAVIRTUA-210
+        $core_lang_uv=get_core_lang_uv ();
+        if ($core_lang_uv==1) {
+         $lang=current_language();
+         $course->fullname= get_fullname_customfield_uv($course->id,$lang);
+        }
+        //DRG-end
         $fullname = format_string($course->fullname, true, array('context' => $coursecontext));
         // This is the name that will be shown for the course.
         $coursename = empty($CFG->navshowfullcoursenames) ? $shortname : $fullname;
@@ -3056,10 +3063,11 @@ class global_navigation extends navigation_node {
         // Go through the courses and see which ones we want to display in the flatnav.
         foreach ($courses as $course) {
             $classify = course_classify_for_timeline($course);
-
-            if ($classify == COURSE_TIMELINE_INPROGRESS) {
-                $flatnavcourses[$course->id] = $course;
-            }
+            //DRG CORE navdrawer muestra siempre los cursos da igual la fecha
+            $flatnavcourses[$course->id] = $course;
+            //if ($classify == COURSE_TIMELINE_INPROGRESS) {
+            //    $flatnavcourses[$course->id] = $course;
+            //}
         }
 
         // Get the number of courses that can be displayed in the nav block and in the flatnav.
@@ -3670,8 +3678,7 @@ class navbar extends navigation_node {
         }
 
         // Don't show the 'course' node if enrolled in this course.
-        $coursecontext = context_course::instance($this->page->course->id);
-        if (!is_enrolled($coursecontext, null, '', true)) {
+        if (!is_enrolled(context_course::instance($this->page->course->id, null, '', true))) {
             $courses = $this->page->navigation->get('courses');
             if (!$courses) {
                 // Courses node may not be present.
@@ -4012,9 +4019,24 @@ class flat_navigation extends navigation_node_collection {
 
             $coursecontext = context_course::instance($course->id, MUST_EXIST);
             // This is the name that will be shown for the course.
-            $coursename = empty($CFG->navshowfullcoursenames) ?
-                format_string($course->shortname, true, array('context' => $coursecontext)) :
-                format_string($course->fullname, true, array('context' => $coursecontext));
+            //DRG begin CORE LANG. https://jirad.uv.es/browse/AULAVIRTUA-210 https://jirad.uv.es/browse/AULAVIRTUA-287
+            $core_lang_uv=get_core_lang_uv ();
+            if ($core_lang_uv == 1) {
+              //DRG CORE LANG. Cambia nombre en nav_drawer
+              $lang=current_language();
+              $coursename = empty($CFG->navshowfullcoursenames) ?
+              format_string($course->shortname, true, array('context' => $coursecontext)) :
+              format_string(get_fullname_customfield_uv($course->id,$lang), true, array('context' => $coursecontext));
+            } else {
+              $coursename = empty($CFG->navshowfullcoursenames) ?
+              format_string($course->shortname, true, array('context' => $coursecontext)) :
+              format_string($course->fullname, true, array('context' => $coursecontext));
+            }
+            //DRG end
+
+            //$coursename = empty($CFG->navshowfullcoursenames) ?
+            //    format_string($course->shortname, true, array('context' => $coursecontext)) :
+            //    format_string($course->fullname, true, array('context' => $coursecontext));
 
             $flat = new flat_navigation_node(navigation_node::create($coursename, $url), 0);
             $flat->set_collectionlabel($coursename);
